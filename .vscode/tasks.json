@@ -1,0 +1,50 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Render Video",
+            "type": "shell",
+            "command": "manim -pql ${file} ${input:Scene} -o ${workspaceFolder}/resources/renders/lq/${fileBasenameNoExtension}_${input:Scene}",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Render Last Frame",
+            "type": "shell",
+            "command": "manim -pqh -s ${file} ${input:Scene} -o ${workspaceFolder}/resources/renders/images/${fileBasenameNoExtension}_${input:Scene}",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Render Video HQ",
+            "type": "shell",
+            "command": "manim -pqh ${file} ${input:Scene} -o ${workspaceFolder}/resources/renders/hq/${fileBasenameNoExtension}_${input:Scene}",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "Scene",
+            "type": "command",
+            "command": "memento.promptString",
+            "args": {
+                "id": "Scene Name",
+                "description": "Scene Name",
+                "default": "Main",
+                "placeholder": "Main"
+            }
+        }
+    ]
+}
