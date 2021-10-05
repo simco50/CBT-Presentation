@@ -27,7 +27,7 @@ The title is quite a mouthful of words, but I wouldn't worry, because it's actua
 
 [_video source_](https://www.youtube.com/watch?v=ocVSfWo3MLY)
 
-<video src="Resources/Bubble Sort Demo.mp4">
+<video src="Resources/BubbleSortDemo.mp4">
 
 note: Before I jump in. I recently found out, just when I started making this presentation, that the library used to make math instructional videos by 3Blue1Brown, with which you may be familiar with, is an open source Python library called Manim.
 I decided to play around with it and I ended up implementing a part of the subdivision algorithms in Python to be able to visualize them.
