@@ -17,7 +17,7 @@ enableChalkboard: true
 ##### Concurrent Binary Tree & Longest Edge Bisection
 
 note: Hello everyone. A couple months ago, I attended virtual SIGGRAPH and while there was a ton of interesting content and talks, there was one in particular that really got my attention which was a presentation by some graphics engineers at Unity who have implemented terrain rendering with adaptive subdivion inside Unity with this novel data structure called a Concurrent Binary Tree.
-After seeing the presentation and later reading the paper, I decided to try and implement this myself based on the paper and what you see here in the background is the result the implementation, though as you can see no artistic touch whatsoever :).
+After seeing the presentation and later reading the paper, I decided to try and implement this myself based on the paper and what you see here in the background is the result of my implementation, though as you can see no artistic touch whatsoever :).
 So based on those results and findings, I'd like to talk about adaptive subdivision on the GPU using concurrent binary trees and longest edge bisection.
 The title is quite a mouthful of words, but I wouldn't worry, because it's actually not as complicated as it sounds and I hope that when I finish talking you'll understand how it works.
 
@@ -31,14 +31,14 @@ The title is quite a mouthful of words, but I wouldn't worry, because it's actua
 
 note: Before I jump in. I recently found out about this open source Python library called Manim. It's the library used to make math instructional videos created by Grant Sanderson or his more familiar sounding Youtube channel called 3Blue1Brown.
 I decided to play around with it and I ended up implementing a part of the subdivision algorithms in Python to be able to visualize it.
-I think this library is super cool and the video you see here is just and example I took from YouTube to show you what it can do.
-I hope some of the videos throughout the slides will help better understand the algortihms.
+I think this library is super cool and the video you see here is just an example I took from YouTube to show you what it can do.
+I hope some of the videos throughout the slides will help you better understand the algortihms.
 
 ---
 
 ## Skip to the results
 
-note: So moving on, let's jump into it. Like I said, the title of this presentation is quite the mouthful so I'd like to start with a little demo first to give you an idea of what exactly we try to achieve here.
+note: So let's jump into it. Like I said, the title of this presentation is quite the mouthful so I'd like to start with a little demo first to give you an idea of what exactly we try to achieve here.
 
 ---
 
@@ -74,15 +74,15 @@ Leaf nodes describe triangles via the path they form from the root
 
 <video src="Resources/renders/hq/UniformLEB_WithTree_Main.mp4">
 
-note: This brings me to the idea proposed in the paper. The canonical subdivision can be represented with a binary tree with each level of the tree representing a subdivision level. Think about the root node being a single large triangle and then splitting the triangle is done by splitting the node into two children. The leaf nodes of the tree then represent the triangles.
+note: This brings me to the idea proposed in the paper. The canonical subdivision can be represented with a binary tree with each level of the tree representing a subdivision level. Think about it as the root node of the tree being a single large triangle and then splitting the triangle is done by splitting the node into two children. The leaf nodes of the tree then represent the triangles.
 This means, if we find a way to parallelize operating on the nodes of a binary tree, we can accelerate our subdivision.
-In other words, what we want, is to be able to process each leaf node in the binary tree indepedently on the GPU by either spliting it or merging it without terrible data access conflicts.
+In other words, what we want, is to be able to process each leaf node in the binary tree indepedently on the GPU by either spliting it or merging it without data access conflicts or race conditions.
 
 ---
 
 #### Longest Edge Bisection (LEB)
 
-note: I'd like to split the problem in two parts: Rendering the triangles represented in the binary tree, and update the binary tree efficiently based on a ruleset. And that ruleset effectively boils down to adding more detail the closer the camera is to the triangle. I'm going to start by describing the approach to render the triangles first. For this an algorithm called Longest Edge Bisection is used.
+note: I'd like to split the problem in two parts: Rendering the triangles represented in the binary tree, and update the binary tree efficiently based on a ruleset with that ruleset basically resulting in adding more detail the closer the camera is to the triangle. I'm going to start by describing the approach to render the triangles first. For this we use an algorithm called Longest Edge Bisection.
 
 ---
 
@@ -93,7 +93,7 @@ Uniform Subdivision
 note: Longest Edge Bisection (or LEB for short) is a fancy name for possibly the simplest subdivision scheme in existance. You take a triangle and you split it in half along it's longest edge leaving you with 2 triangles. And this can be done recursively to achieve more subdivision.
 This fits exactly with the binary tree idea.
 For uniform subdivision, each subdivision, the amount of triangles will double due to its exponential nature.
-As you can see in the video, we assign each triangle a value starting from 1 which match the binary tree indices starting from the root not of the tree.
+As you can see in the video, we assign each triangle a value starting from 1 which match the binary tree indices starting from the root node of the tree.
 
 ---
 
@@ -102,7 +102,7 @@ Binary
 <video src="Resources/renders/hq/UniformLEB_Binary_Main.mp4">
 
 note: Now let's look at this again but show each triangle value's in it's binary representation.
-There's two convenient things we see here. The subdivision depth of each triangle is defined by the number of bits of the index. 
+There's two interesting things we see here. The subdivision depth of each triangle is defined by the number of bits of the triangle index. 
 And the least significant bit - or rightmost bit - defines if the triangle gets split to the left side or the right side.
 
 ---
@@ -114,8 +114,8 @@ LEB Split Matrix
 note: 
 With these two observations in mind, the subdivision algorithm can be implemented per triangle by scanning over all the bits in the index of the triangle and recursively multiplying a so called split matrix based on if that bit is a 0 or a 1.
 The left matrix above scales and shifts the triangle vertices to the left side, and the right matrix does the same but for the right side.
-It doesn't take long to realize both are almost identical and we can just plug in a parameter based on the bit value
-So the almost the entire algorithm is done with this single matrix.
+It doesn't take long to realize both are almost identical and we can just plug in a parameter based on the bit value.
+So almost the entire algorithm is done with this single matrix.
 
 ---
 
@@ -158,14 +158,14 @@ Adaptive Subdivision
 <video src="Resources/renders/hq/AdaptiveLEB_NoTree_Main.mp4">
 
 note: Now I think that's pretty elegant and it's not that hard to make this adaptive. Adaptive subdivision has essentially the same principles but we subdivide our triangle based on a target criteria, for example this point.
-When recursively check if the target is inside the triangle and if it is, we split it.
-Notice that the following video actually has a problem, partially due to me procrastinating making this presentation and therefor having too little time but also to prove a point, which is that it creates so called T-juctions which are the vertices touching the middle of an edge and that will cause cracks in the geometry. Imagine there being a height offset at that point, there is no way for that larger triangle to match the deformation of its neighboring triangles. We want to avoid that.
+You recursively check if the target is inside the triangle and if it is, we split it.
+Notice that the following video actually has a problem, partially due to me procrastinating to finish making this presentation and therefor having too little time but also to prove a point, which is that it creates so called T-juctions which are the vertices touching the middle of an edge and that will cause cracks in the geometry. Imagine there being a height offset at that point, there is no way for that larger triangle to match the deformation of its neighboring triangles and we want to avoid that.
 
 ---
 
 <video width="650px" src="Resources/AdaptiveLEB.mp4">
 
-note: So here with a video capture in application where this problem is solved. We do this by making sure a neighboring triangle is never more than 1 level different in subdivision. This can be implemented by adapting the splitting and merging operation during subdivision. Whenever a triangle wants to be split we have to split the neighboring triangles recursively until the rule is satisfied and when a triangle wants to be merged, its longest edge neighbors also wants to be merged as they need to be merged at the same time to avoid cracks.
+note: So here with a video capture in application where this problem is solved. We do this by making sure a neighboring triangle is never more than 1 level different in subdivision. This can be implemented by adapting the splitting and merging operation. Whenever a triangle wants to be split we have to split the neighboring triangles recursively until the rule is satisfied and when a triangle wants to be merged, its longest edge neighbors also needs to be merged without breaking the rule as they need to be merged at the same time to avoid cracks.
 
 ---
 
@@ -182,11 +182,11 @@ So we now have the algorithm to be able to render the triangles described by a b
 
 <video src="Resources/renders/hq/BinaryTree_ExampleTree.mp4">
 
-note: So this is the main subject of the paper which is the novel data structure which allows updating of a binary tree in parallel.
-Manipulating a regular binary tree data structure in parallel is not efficient so that's where CBT comes in.
-In essence, a Concurrent Binary Tree (or CBT) looks like a binary tree but it actually encodes a binary tree.
+note: This is the main subject of the paper which is the novel data structure that allows updating of a binary tree in parallel.
+Manipulating a regular binary tree data structure in parallel is not efficient so that's where Concurrent Binary Tree (or CBT) comes in.
+In essence, a CBT looks like a binary tree but it actually encodes the actual binary tree.
 It's formed of 2 parts: a bitfield with bits equal to the amount of maximum leaf nodes and a sum reduction tree which stores the sum of child node values from bottom to top.
-The bitfield alone can actually represent the binary tree but the sum reduction tree will become a key part to be able to parallize the workloads. The bitfield is encoded as 32 bit integers because we can't represent or modify individual bits.
+The bitfield alone can actually represent the binary tree but the sum reduction tree will become a key part to be able to parallize the workloads. The bitfield is encoded using 32 bit integers because we can't directly modify individual bits directly in I think probably any programming language.
 
 ---
 
@@ -194,9 +194,9 @@ The bitfield alone can actually represent the binary tree but the sum reduction 
 
 <video src="Resources/renders/hq/BitfieldToTree_Main.mp4">
 
-note: The bitfield alone encodes the entire binary tree. The way that works is that each one in the bitfield represents a leaf node. 
-Take for example the last bit here, to compute which node it's associated with, we simply count the number of zero's that come after it, add one and take the log2 of that. The result is 2 which means that starting from the bottom, we go 2 layers up and reach index 3.
-That means a fully split binary tree is just a bitfield with all 1's and a binary tree with a single node is just a single 1 with all 0's.
+note: The bitfield alone encodes the entire binary tree. The way that works is that each one in the bitfield represents a leaf node of the actual tree. 
+Take for example the last bit here, to compute which node it's associated with, we simply count the number of zero's that come after it, add one and take the log2 of that. For this example, there's three zeros which means the result of that formula is 2 and so starting from the bottom, we go 2 layers up and reach index 3.
+That means that for example a fully split binary tree is represented by a bitfield with all 1's and a binary tree with a single root node is just a single 1 followed by all 0's.
 
 ---
 
@@ -217,8 +217,8 @@ Set right child bit to 1
 
 ![](Resources/Example_SubDiv_Split.png)
 
-note: To split for example node 3, we simply take the right child node, get its corresponding bit and set that to 1.
-See how the left child index is always 2 times the node index and the right child index is that plus one. So this is super fast to compute.
+note: To split for example node 3, we simply take the right child node, get its corresponding bit in the bitfield and set that to 1.
+Also see how the left child index is always 2 times the node index of the parent and the right child index is that plus one. So this is super fast to compute.
 
 ---
 
@@ -234,24 +234,26 @@ note: Node merging is very similar. Take the right child node, and set its corre
 
 ### Sum Reduction Tree
 
-Map ThreadID -> Triangle
+Map ThreadID -> Leaf Node
+
+node: So the bitfield encodes the binary tree and we can implement splitting and merging by setting the corresponding bit to either 1 or 0 respectively.
+Now when we have a binary tree with let's say 12 leaf nodes, we have to dispatch a shader with 12 GPU threads to process each nodes.
+We'll need an efficient way to associate each GPU thread with a leaf node.
 
 ---
 
 ![](Resources/BinarySearch_Example_01.png)
 
-note: So the bitfield encodes the binary tree and we can implement splitting and merging by setting the corresponding bit to either 1 or 0 respectively.
-Now when we have a binary tree with let's say 12 leaf nodes, we have to dispatch a shader with 12 GPU threads to process each nodes.
-We'll need an efficient way to associate each GPU thread with a leaf node. Say we're looking for the leaf node associated with thread number 2. As we've seen before, we can count the bits after the third one in the bitfield and compute the node index that way, but that's terribly inefficient because we'll have to scan the entire bitfield from the start. For a tree of depth 25 that's over 30 million bits.
-This is the purpose of the sum reduction tree. It's built by adding the value of each child pair and storing it in its parent from bottom to top. With this, you can do a binary search from top to bottom to find the node association much more efficiently.
+note: Say we're looking for the leaf node associated with thread number 2. As we've seen before, we can count the bits after the third one in the bitfield and compute the node index that way, but that's terribly inefficient because we'll have to scan the entire bitfield from the start. For a tree of depth 25 that's over 30 million bits.
+The purpose of the sum reduction tree is to accelerate this. It's built by adding the value of each child pair and storing it in its parent from bottom to top. With this, you can do a binary search from top to bottom to find the node association much more efficiently.
 So before each subdivision pass, the sum reduction tree has to be updated.
 
 ---
 
 ![](Resources/BinarySearch_Example_02.png)
 
-note: So moving forward with this example, the binary search works as follows. We have our thread index and start from the top of the tree.
-We compare the thread index with the left child node and step to the left child as our thread index is smaller than that value.
+note: So moving forward with this example, the binary search works as follows. We have our thread index 2 and start from the top of the tree.
+We compare the thread index with the left child node's value and step to the left child as our thread index is smaller than that value.
 
 ---
 
@@ -270,7 +272,6 @@ note: Compare the thread index with the left child. This time we step to the rig
 ![](Resources/BinarySearch_Example_05.png)
 
 note: When stepping to the right child, we subtract the left child's value from our thread index. If you keep doing that until the value is smaller than 1, the node you end up on is the node associated with the thread index.
-Compared to scanning the entire bitfield from the very start for each thread, this algorithm is much more efficient and has a better worst case performance cost.
 
 ---
 
@@ -289,7 +290,7 @@ for(triangleIndex : triangles)
             cbt.Merge(nodeIndex);
 ```
 
-note: With these tools in mind, the whole subdivision eventually boils down to just a few simple operations. Each GPU thread takes a triangle by doing the binary search I've described, computes the LOD value based on user defined criteria such as camera distance, and either splits or merges the triangle based on that value.
+note: With knowing how to perform splitting and merging and mapping the thread index to each leaf node, the subdivision algorithm can be implemented as those are the main building blocks. Each GPU thread takes a triangle by doing the binary search I've described, computes the LOD value based on user defined criteria such as camera distance and frustum culling, and either splits or merges the triangle based on that LOD value. See here how when merging, like I've mentioned before, we have to make sure the longest edge neighbor wants to merge too to avoid cracks.
 
 ---
 
@@ -297,9 +298,9 @@ note: With these tools in mind, the whole subdivision eventually boils down to j
 
 <video src="Resources/renders/hq/UpdateFlow_Normal.mp4">
 
-note: So here are the high level stages that run per frame to perform the adaptive subdivision.
+note: Zooming out a little, here are the high level stages or "render passes" that run per frame to perform the adaptive subdivision.
 The indirect arguments are retrieved from the root node of the CBT which represent the amount of leaf nodes.
-Then we can dispatch the exact amount of threads on the GPU to perform the subdivision. That's followed by the sum reduction pass and then we can use that data to render our triangles. 
+Then we can dispatch the exact amount of threads on the GPU to perform the subdivision. That's followed by the sum reduction pass and eventually we can use that data to render our triangles. 
 
 ---
 
@@ -378,9 +379,9 @@ However, we can't simply modify certain bits in a datastream as all data is enco
 
 ![](Resources/nanite.png)
 
-note: So I think this technique is extremely promising and I've been surprised at how easy this all is to implement in practise be it either on the CPU or GPU. This algorithm will become Unity's future terrain rendering algorithm and I wouldn't be surprised if they're experimenting with applying this to water rendering as well.
+note: So I think this technique is extremely promising and I've been surprised at how easy this all is to implement in practice be it either on the CPU or GPU. This algorithm will become Unity's future terrain rendering algorithm and I wouldn't be surprised if they're experimenting with applying this to water rendering as well.
 However, there's still a desire to reach more subdivision without the great exponential memory and performance cost which I think will be very hard to solve. There are a few really clever tricks found to greatly optimize certain parts of this technique but there's still a lot of work to be done.
-Any time I read something about subdivision schemes for games, I'm always reminded by someone else asking how it compares and relates to Unreal Engine 5's Nanite. I think the goal is the same being per pixel triangle detail for which it's visually imperceptive to see LOD pops due to its subpixel property. And I think Nanite has solved the several major road blocks to achieve this while nobody came close before. Per pixel triangles are prohibilively expensive on today's GPU's due to its design and this subdivision scheme won't even get close to Nanite without the software rasterization and compression that it has. However, Nanite does not support any form of runtime tessellation or displacement yet so in reality it can't achieve this today.
+Any time I read something about subdivision schemes for games, I'm reminded by someone else always asking about how it compares and relates to Unreal Engine 5's Nanite. I think the goal is the same being per pixel triangle detail for which it's visually imperceptive to see LOD pops due to its subpixel property. I think Nanite however has solved the several major road blocks to achieve this while nobody came close before. Per pixel triangles are prohibilively expensive on today's GPU's due to its design and I think the CBT subdivision scheme won't get close to Nanite without the software rasterization and compression that it has. However, Nanite doesn't support any form of runtime tessellation or displacement yet so in reality it can't achieve this today.
 
 ---
 
@@ -391,6 +392,8 @@ Any time I read something about subdivision schemes for games, I'm always remind
 - Dupuy [Longest Edge Bisection demo on Github](https://github.com/jdupuy/LongestEdgeBisection2D)
 - [Manim Community](https://docs.manim.community/en/stable/index.html)
 
+note: These are my references for my work
+
 ---
 
 #### Source code and slides on GitHub
@@ -398,3 +401,5 @@ Any time I read something about subdivision schemes for games, I'm always remind
 **Source**: github.com/simco50/D3D12_Research/tree/CBT
 
 **Presentation**: simco50.github.io/CBT-Presentation/index#/
+
+note: And the source code for my implementation is on GitHub and so is this presentation in case you're curious in checking it out.
