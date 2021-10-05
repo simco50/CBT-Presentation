@@ -29,9 +29,10 @@ The title is quite a mouthful of words, but I wouldn't worry, because it's actua
 
 <video src="Resources/BubbleSortDemo.mp4">
 
-note: Before I jump in. I recently found out, just when I started making this presentation, that the library used to make math instructional videos by 3Blue1Brown, with which you may be familiar with, is an open source Python library called Manim.
-I decided to play around with it and I ended up implementing a part of the subdivision algorithms in Python to be able to visualize them.
-I think this library is super cool and the video here is just and example I took from YouTube to show you what it can do.
+note: Before I jump in. I recently found out about this open source Python library called Manim. It's the library used to make math instructional videos created by Grant Sanderson or his more familiar sounding Youtube channel called 3Blue1Brown.
+I decided to play around with it and I ended up implementing a part of the subdivision algorithms in Python to be able to visualize it.
+I think this library is super cool and the video you see here is just and example I took from YouTube to show you what it can do.
+I hope some of the videos throughout the slides will help better understand the algortihms.
 
 ---
 
@@ -73,15 +74,15 @@ Leaf nodes describe triangles via the path they form from the root
 
 <video src="Resources/renders/hq/UniformLEB_WithTree_Main.mp4">
 
-note: This brings me to the idea proposed in the paper. The canonical subdivision can be represented with a binary tree with each level of the tree representing a subdivision level. Think about the root node being a single large triangle and splitting the triangle is done by splitting the node in two children.
+note: This brings me to the idea proposed in the paper. The canonical subdivision can be represented with a binary tree with each level of the tree representing a subdivision level. Think about the root node being a single large triangle and then splitting the triangle is done by splitting the node into two children. The leaf nodes of the tree then represent the triangles.
 This means, if we find a way to parallelize operating on the nodes of a binary tree, we can accelerate our subdivision.
-In other words, what we want, is to be able to process each node in the binary tree indepedently on the GPU by either spliting it or merging it without terrible data access conflicts.
+In other words, what we want, is to be able to process each leaf node in the binary tree indepedently on the GPU by either spliting it or merging it without terrible data access conflicts.
 
 ---
 
 #### Longest Edge Bisection (LEB)
 
-note: I'd like to split the problem in two parts: Rendering the triangles represented in the binary tree, and update the binary tree efficiently based on a ruleset. And that ruleset effectively boils down to adding more detail the closer the camera is to the triangle. I'm going to start by described the approach to render the triangles first. For this an algorithm called Longest Edge Bisection is used.
+note: I'd like to split the problem in two parts: Rendering the triangles represented in the binary tree, and update the binary tree efficiently based on a ruleset. And that ruleset effectively boils down to adding more detail the closer the camera is to the triangle. I'm going to start by describing the approach to render the triangles first. For this an algorithm called Longest Edge Bisection is used.
 
 ---
 
@@ -118,9 +119,22 @@ So the almost the entire algorithm is done with this single matrix.
 
 ---
 
-Example
+Pseudo
 
-note: I can understand all of this may still sound a bit abstract but I think a concrete example will make it clear how it works and make you realize how simple this actually is.
+```c++
+depth = firstbithigh(nodeIndex);
+bitID = depth - 1;
+matrix = IdentityMatrix()
+for(bitID = depth - 1; bitID >= 0; --bitID)
+{
+    splitMatrix = GetSplitMatrix(GetBitValue(nodeIndex, bitID));
+    matrix = mul(splitMatrix, matrix);
+}
+triangleVertices = mul(matrix, baseTriangle);
+```
+
+note: So the algorithm boils down to a for loop over all the bits of the node index and sequentially multiplying the appropriate split matrix.
+I can understand all of this may still sound a bit abstract but I think a concrete example will make it clear how it works and make you realize how simple this actually is.
 
 ---
 
@@ -145,13 +159,13 @@ Adaptive Subdivision
 
 note: Now I think that's pretty elegant and it's not that hard to make this adaptive. Adaptive subdivision has essentially the same principles but we subdivide our triangle based on a target criteria, for example this point.
 When recursively check if the target is inside the triangle and if it is, we split it.
-Notice that the following video actually has a problem, partially due to procrastinating making this presentation and therefor having too little time but also to prove a point, which is that it creates so called T-juctions which are the vertices touching the middle of an edge and that could cause cracks in the geometry. Image there being a height offset at that point, there is no way for that larger triangle to match the deformation of its neighboring triangles. We want to avoid that.
+Notice that the following video actually has a problem, partially due to me procrastinating making this presentation and therefor having too little time but also to prove a point, which is that it creates so called T-juctions which are the vertices touching the middle of an edge and that will cause cracks in the geometry. Imagine there being a height offset at that point, there is no way for that larger triangle to match the deformation of its neighboring triangles. We want to avoid that.
 
 ---
 
 <video width="650px" src="Resources/AdaptiveLEB.mp4">
 
-note: So here with a video capture in application where this problem is solved. We do this by making sure a neighboring triangle is never more than 1 level different in subdivision. This can be implemented by adapting the splitting and merging operation during subdivision.
+note: So here with a video capture in application where this problem is solved. We do this by making sure a neighboring triangle is never more than 1 level different in subdivision. This can be implemented by adapting the splitting and merging operation during subdivision. Whenever a triangle wants to be split we have to split the neighboring triangles recursively until the rule is satisfied and when a triangle wants to be merged, its longest edge neighbors also wants to be merged as they need to be merged at the same time to avoid cracks.
 
 ---
 
@@ -297,7 +311,7 @@ Per triangle frustum culling and expansion.
 
 <video src="Resources/renders/hq/UpdateFlow_MeshShader.mp4">
 
-note: Not so long ago, GPU vendors have introduced so called mesh shaders. For the unfamiliar, these fancy new hipster shaders replace vertex shaders, geometry shaders and tessellation shaders including the fixed function input assembler. It allows you to implement it yourself using a compute shader-style interface. So instead of doing subdivision and rendering separately, you can implement the subdivision in an amplification shader and from within that shader, you can dispatch mesh shaders on the GPU to form triangles. Another advantage of mesh shaders is that they can produce extra triangles and remove triangles similar to geometry shaders without any of the downsides. This allows you to further subdivide each triangle from the CBT in even more triangles. In my implementation, I divide each triangle into 128 more triangles. The advantage of being able to remove triangles is that you can perform per triangle frustum culling to further reduce rendering cost.
+note: Not so long ago, GPU vendors have introduced so called mesh shaders. For the unfamiliar, these fancy new hipster shaders replace vertex shaders, geometry shaders and tessellation shaders including the fixed function input assembler. It allows you to implement it yourself using a compute shader-style interface. So instead of doing subdivision and rendering separately, you can implement the subdivision in an amplification shader and from within that shader, you can dispatch mesh shaders on the GPU to form triangles. Another advantage of mesh shaders is that they can produce extra triangles and remove triangles similar to geometry shaders without any of the downsides. This allows you to further subdivide each triangle from the CBT in even more triangles. In my implementation, I divide each triangle into 128 more triangles. The advantage of being able to remove triangles is that you can perform per triangle frustum culling to further reduce rendering cost. That is technically also possible with a geometry shader but I found that to be much less efficient being twice as costly.
 
 ---
 
@@ -305,7 +319,7 @@ note: Not so long ago, GPU vendors have introduced so called mesh shaders. For t
 
 - Screen size
 - Frustum culling
-- Local displacement
+- Local displacement/curvature
 - Retain silhouette for shadows 
 
 note: The subdivision algorithm allows you to make LOD decisions for each individual triangle. This can be completely arbitrary but I imagine most of the time the criteria are these. The idea is to keep the size of each triangle equal in size on screen. Meaning triangles far away from the view will be subdivides less. We can also stop subdividing triangles outside the view, and not subdivide in areas where we don't need to. For the terrain example, we don't have to subdivide areas where it's completely flat.
@@ -379,6 +393,8 @@ Any time I read something about subdivision schemes for games, I'm always remind
 
 ---
 
-#### Source code in GitHub
+#### Source code and slides on GitHub
 
-github.com/simco50/D3D12_Research/tree/CBT
+**Source**: github.com/simco50/D3D12_Research/tree/CBT
+
+**Presentation**: simco50.github.io/CBT-Presentation/index#/
